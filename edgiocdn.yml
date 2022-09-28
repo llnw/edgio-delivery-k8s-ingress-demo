@@ -1,0 +1,11 @@
+---
+edgio-llnw:
+  username: edgiousername@domain.tld
+  key: mylonghexkeyfromedgiocontrol
+account-config:
+  shortname: myedgioshortname
+  fqdn: mypublishedfqdn.tld
+  path: /mypath/
+origin-config:
+  fqdn: originfqdn.tld
+  port: 80

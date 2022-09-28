@@ -4,6 +4,7 @@ import pprint
 import sys
 from urllib.parse import urlencode
 import yaml
+import os
 
 
 
@@ -25,16 +26,27 @@ class EdgioCDN:
     published_path: str
         The public facing path associated with the published host
         """
-        with open("credentials.yml") as creds:
+
+
+
+        try:
+         conf_file = os.environ['EDGIO_CONF']
+        except:
+            conf_file = 'edgiocdn.yml'
+        
+
+        with open(conf_file) as conf:
             try:
-                cred_dict=(yaml.safe_load(creds))
+                conf_dict=(yaml.safe_load(conf))
             except yaml.YAMLError as exc:
                 print(exc)
-        
-        self.username=cred_dict['edgio-llnw']['username']
-        self.shared_key=cred_dict['edgio-llnw']['key']
 
-        self.shortname = shortname
+
+        
+        self.username=conf_dict['edgio-llnw']['username']
+        self.shared_key=conf_dict['edgio-llnw']['key']
+        self.shortname=shortname
+
 
         self.cl = ConfigApiClient('apis.llnw.com', self.username, self.shared_key)
         self.published_hostname = published_host
@@ -56,22 +68,49 @@ class EdgioCDN:
 
 
     def update_origin_port(self,source_port):
+        """
+        Update the objects origin port
+        Parameters
+        ---------
+        source_port: int
+            Origin port
+        """
         self.delivery_object.clear_protocol_set()
         self.delivery_object.add_protocol_set(published_protocol='https',source_protocol='http',published_port=443,source_port=source_port)
         print(self.delivery_object)
     
     def update_origin_path(self,source_path):
+        """
+        Update the objects origin path
+        Parameters
+        ---------
+        source_port: str
+            Origin path
+        """
         self.delivery_object._set_delivery_svc_instance(sourceUrlPath=source_path)
 
     def update_origin_host(self,source_host):
+        """
+        Update the objects origins hostname
+        Parameters
+        ---------
+        source_host: str
+            Origin hostname
+        """
         self.delivery_object._set_delivery_svc_instance(sourceHostname=source_host)
     
     def get_template(self):
+        """
+        get object template
+        """
         return(self.delivery_object)
     
     def find_service_instance(self):
+        """
+        get specific cdn object from CDN
+        """
         # this only checks for matching published host anme and published url path
-        # assuming anything else is a change to and existing ingress
+        # assuming anything else is a change to an existing ingress
         # edgio api automatically prepends / if not there.
         if self.published_path[0] != '/':
             self.published_path = '/{}'.format(self.published_path)
@@ -81,12 +120,16 @@ class EdgioCDN:
         }
         print(searchtuplelist)
         searchstring =  urlencode(searchtuplelist)
-        finstance = self.cl.search_delivery_service_instance('cstradtman',parameters=searchstring)
+        print(searchstring)
+        finstance = self.cl.search_delivery_service_instance(self.shortname,parameters=searchstring)
         print(finstance.status_code)
         print(finstance.json())
         return finstance.json()
 
     def submit(self):
+        """
+        submit configuration to CDN
+        """
         if self.cdn_uuid is None:
             result = self.cl.create_delivery_service_instance(self.delivery_object)
         else:
@@ -96,10 +139,26 @@ class EdgioCDN:
 
 
 
+
 def main():
-    mycdn = EdgioCDN('cstradtman','cstradtman.s.llnwi.net','/bob/')
-    mycdn.update_origin_port(80)
-    mycdn.update_origin_host('shorty.1tp.us')
+    try:
+        config_file = os.environ['EDGIO_CONF']
+    except:
+        config_file = 'edgiocdn.yml'
+    with open(config_file) as configs:
+        try:
+            config_dict=(yaml.safe_load(configs))
+        except yaml.YAMLError as exc:
+            print(exc)
+    shortname = config_dict['account-config']['shortname']
+    fqdn = config_dict['account-config']['fqdn']
+    path = config_dict['account-config']['path']
+    origin = config_dict['origin-config']['fqdn']
+    origin_port = config_dict['origin-config']['port']
+
+    mycdn = EdgioCDN(shortname,fqdn,path)
+    mycdn.update_origin_port(origin_port)
+    mycdn.update_origin_host(origin)
     result = mycdn.get_template()
    # pprint.pprint(result)
     sresult = mycdn.submit()

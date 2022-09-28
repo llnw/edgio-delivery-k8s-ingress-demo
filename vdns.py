@@ -2,16 +2,23 @@ import requests
 import pprint
 import sys
 import yaml
+import os
 
 class vdns:
-    def __init__(self,cred_label):
-        with open("credentials.yml") as creds:
+    def __init__(self,conf_label):
+        try:
+         conf_file = os.environ['VDNS_CONF']
+        except:
+            conf_file = 'vdns.yml'
+    
+
+        with open(conf_file) as conf:
             try:
-                cred_dict=(yaml.safe_load(creds))
+                conf_dict=(yaml.safe_load(conf))
             except yaml.YAMLError as exc:
                 print(exc)
-        self.domain = cred_dict[cred_label]['domain']
-        key = cred_dict[cred_label]['token']
+        self.domain = conf_dict[conf_label]['domain']
+        key = conf_dict[conf_label]['token']
         self.vhost = 'api.vultr.com'
         self.dns_session=requests.Session()
         self.dns_session.headers.update({'Authorization':'Bearer {}'.format(key)})
@@ -52,4 +59,4 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())  # next section explains the use of sys.exit
+    sys.exit(main()) 
